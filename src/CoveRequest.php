@@ -43,7 +43,6 @@ class CoveRequest  {
     $parts = parse_url($url);
 
     // Extract just the query parameters
-    kint ($parts);
     $query = $parts['query'];
     if ($query) {
       // break out the parameters from the query, but only as a single
@@ -133,130 +132,15 @@ class CoveRequest  {
       'debug' => TRUE,
     );
 
-    kint('Making request...');
-    $client = \Drupal::httpClient();
-    $request = $client->request('GET', $url, $options);
-
     try {
-      $response = $client->get($request);
-      kint('Got response');
-      $data = $response->getBody();
+      $client = \Drupal::httpClient();
+      $request = $client->get($url, $options);
+      $response = $request->getBody($request);
     }
     catch (RequestException $e) {
-      watchdog_exception('cove_api', $e);
+      watchdog_exception('cove_api', $e->getMessage());
     }
-    //$response = "This is a test";
 
-    dpm ($response, 'response');
-    kint ($data);
     return $response;
-  }
-  
-  
-  // If only the url is passed in, the timestamp and nonce
-  // will be automatically generated
-  //
-  // Some proxies/firewalls and/or PHP configurations have problems using the
-  // headers as the authentication mechanism so the default will be to use
-  // the authentication parameters included in the url string.
-  // If you are caching the API calls, it may be more advantageous to
-  // utilize the header version.
-  //
-  // Returns the JSON response
-  //
-  //
-  function make_request($url, $auth_using_headers=false, $timestamp=0, $nonce='', $use_curl=true) {
-    // check to see if we need to autogenerate the parameters
-    if ($timestamp == 0)
-      $timestamp = time();
-    if ($nonce == '')
-      $nonce = md5(rand());
-
-    if ($auth_using_headers == false) {
-      // Pick the correct separator to use
-      $separator = "?";
-      if (strpos($url,"?")!==false)
-          $separator = "&";
-
-      $url = $url.$separator."consumer_key=".$this->api_id."&timestamp=".$timestamp."&nonce=".$nonce;
-      $signature = $this->calc_signature($url, $timestamp, $nonce);
-      // Now add signature at the end
-      $url = $this->normalize_url($url."&signature=".$signature);
-      // cURL is required to get any error reporting from the COVE API.
-      if ($use_curl && function_exists('curl_init')) {
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        $result = curl_exec($ch);
-        $errors = curl_error($ch);
-        $info = curl_getinfo($ch);
-        if (empty($result)){
-          if (!$errors && ($info['http_code'] != 200)){
-            $errors = "HTTP_CODE: " . $info['http_code'];
-          }
-          if ($errors) {
-            $resultary = array();
-            $resultary['errors'] = $errors;
-            $result = json_encode($resultary);
-          }
-        }
-      } else {
-        // no cURL, fallback, but no error reporting
-        $result = file_get_contents($url);
-      }
-      return $result;
-    }
-    else {
-      $signature = $this->calc_signature($url, $timestamp, $nonce);
-      // Put the authentication parameters into the HTTP headers
-      // instead of into the url parameters
-      $url = $this->normalize_url($url);
-      // cURL is required to get any error reporting from the COVE API.
-      if ($use_curl && function_exists('curl_init')) {
-        $ch = curl_init($url);
-        $f = fopen('curl_request.txt', 'w');
-        curl_setopt($ch, CURLOPT_VERBOSE, TRUE);
-        curl_setopt($ch, CURLINFO_HEADER_OUT, TRUE);
-        curl_setopt($ch, CURLOPT_STDERR, $f);
-        curl_setopt($ch, CURLOPT_HTTPGET, TRUE);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-          "X-PBSAuth-Timestamp: $timestamp",
-          "X-PBSAuth-Consumer-Key: $this->api_id",
-          "X-PBSAuth-Signature: $signature",
-          "X-PBSAuth-Nonce: $nonce"
-        ));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        $result = curl_exec($ch);
-        fclose($f);
-        dpm($result, 'result');
-        $errors = curl_error($ch);
-        kint ($errors);
-        $info = curl_getinfo($ch);
-        kint ($info);
-        if (empty($result)){
-          if (!$errors && ($info['http_code'] != 200)){
-            $errors = $info;
-          }
-          if ($errors) {
-            $resultary = array();
-            $resultary['errors'] = $errors;
-            $result = json_encode($resultary);
-          }
-        }
-        return $result;
-      } else {
-        // no cURL, fallback, but no error reporting
-        $opts = array(
-          'http'=>array(
-              'method'=>"GET",
-              'header'=>"X-PBSAuth-Timestamp: $timestamp" .
-                        "X-PBSAuth-Consumer-Key: $this->api_id".
-                        "X-PBSAuth-Signature: $signature".
-                        "X-PBSAuth-Nonce: $nonce"
-              )
-          );
-        $context = stream_context_create($opts);
-        return(file_get_contents($url, FALSE, $context));
-      }
-    }
   }
 }
