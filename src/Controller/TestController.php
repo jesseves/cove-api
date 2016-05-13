@@ -25,18 +25,14 @@ class TestController extends ControllerBase
     ];
 
     $request = new CoveRequest();
-    //$response = $request->request('videos', $args);
-    $response = $request->request('programs', array('filter_producer__name' => 'WETA'));
+    $response = $request->request('videos', $args);
+    //$response = $request->request('programs', array('filter_producer__name' => 'WETA'));
     //$response = $request->request('programs');
-
-    $output .= 'Got response...';
-    $output .= 'Response: ' . $response;
-    kint($response);
 
     //$output .= 'Response...';
 
     return [
-      '#markup' => $output,
+      '#markup' => '<pre>' . print_r($response, 1) . '</pre>',
     ];
   }
 

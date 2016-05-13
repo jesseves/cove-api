@@ -141,6 +141,7 @@ class CoveRequest  {
       watchdog_exception('cove_api', $e->getMessage());
     }
 
+    kint ($response);
     return $response;
   }
 }
