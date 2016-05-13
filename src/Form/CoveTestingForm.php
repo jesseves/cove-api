@@ -21,7 +21,7 @@ class CoveTestingForm extends FormBase {
    * @var Drupal\cove_api\CoveRequest
    */
   protected $cove_api_request;
-  public function __construc$this->t(
+  public function __construct(
     CoveRequest $cove_api_request
   ) {
     $this->cove_api_request = $cove_api_request;
@@ -29,7 +29,7 @@ class CoveTestingForm extends FormBase {
 
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->ge$this->t('cove_api.request')
+      $container->get('cove_api.request')
     );
   }
 
