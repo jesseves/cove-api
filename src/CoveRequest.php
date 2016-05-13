@@ -129,19 +129,18 @@ class CoveRequest  {
         'X-PBSAuth-Signature' => $signature,
         'X-PBSAuth-Nonce' => $nonce
       ),
-      'debug' => TRUE,
     );
 
     try {
       $client = \Drupal::httpClient();
       $request = $client->get($url, $options);
-      $response = $request->getBody($request);
+      $response = $request->getBody($request)->getContents();
+      $response2 = json_decode($response);
     }
     catch (RequestException $e) {
       watchdog_exception('cove_api', $e->getMessage());
     }
 
-    kint ($response);
-    return $response;
+    return $response2;
   }
 }
