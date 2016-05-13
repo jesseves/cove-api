@@ -9,3 +9,12 @@ cove_api.cove_settings_form:
   options:
     _admin_route: TRUE
 
+cove_api.test_controller:
+  path: '/cove_api_test'
+  defaults:
+    _controller: '\Drupal\cove_api\Controller\TestController::testPage'
+    _title: 'Test Page'
+  requirements:
+    _permission: 'access content'
+
+

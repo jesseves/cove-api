@@ -43,7 +43,8 @@ class CoveRequest  {
     $parts = parse_url($url);
 
     // Extract just the query parameters
-    $query = $parts[query];
+    kint ($parts);
+    $query = $parts['query'];
     if ($query) {
       // break out the parameters from the query, but only as a single
       // array of strings
@@ -70,10 +71,10 @@ class CoveRequest  {
 
       $newquerystring = substr($newquerystring,0,strlen($newquerystring)-1);
       // combine everything into the total url
-      $parts[query] = "?".$newquerystring;
+      $parts['query'] = "?".$newquerystring;
     }
 
-    $final_url = $parts[scheme]."://".$parts[host].$parts[path].$parts[query];
+    $final_url = $parts['scheme']."://".$parts['host'].$parts['path'].$parts['query'];
     return ($final_url);
   }
 
@@ -86,13 +87,72 @@ class CoveRequest  {
 
     // Now combine all the required parameters into a single string
     // Note: We are always assuming 'get'
-    $string_to_sign = "GET".$normalized_url.$timestamp.$this->m_api_id.$nonce;
+    $string_to_sign = "GET".$normalized_url.$timestamp.$this->api_id.$nonce;
 
     // And generate the hash using the secret
-    $signature = hash_hmac('sha1',$string_to_sign, $this->m_api_secret);
+    $signature = hash_hmac('sha1',$string_to_sign, $this->api_secret);
 
     return($signature);
   }
+
+
+  /**
+   * Make a request to the PBS COVE API.
+   *
+   * @param string/array $method
+   *   The API method for the request, can be a string or array.
+   *   arrays will be exploded to allow for things like
+   *   '/programs/408/?args=val'.
+   * @param array $args
+   *   Associative array of arguments to add to the url. For example:
+   *   array('filter_title' => 'nova').
+   * @return mixed|string
+   *   JSON response from PBS
+   */
+  function request($method, $args = array()) {
+
+    if (is_array($method)) {
+      $method = implode('/', $method);
+    }
+
+    $url = 'http://api.pbs.org/cove/v1/' . $method . '/';
+    if (!empty($args)) {
+      $url .= '?' . http_build_query($args);
+    }
+    $timestamp = time();
+    $nonce = md5(rand());
+    $signature = $this->calc_signature($url, $timestamp, $nonce);
+
+    $options = array(
+      'headers' => array(
+        'X-PBSAuth-Timestamp' => $timestamp,
+        'X-PBSAuth-Consumer-Key' => $this->api_id,
+        'X-PBSAuth-Signature' => $signature,
+        'X-PBSAuth-Nonce' => $nonce
+      ),
+      'debug' => TRUE,
+    );
+
+    kint('Making request...');
+    $client = \Drupal::httpClient();
+    $request = $client->request('GET', $url, $options);
+
+    try {
+      $response = $client->get($request);
+      kint('Got response');
+      $data = $response->getBody();
+    }
+    catch (RequestException $e) {
+      watchdog_exception('cove_api', $e);
+    }
+    //$response = "This is a test";
+
+    dpm ($response, 'response');
+    kint ($data);
+    return $response;
+  }
+  
+  
   // If only the url is passed in, the timestamp and nonce
   // will be automatically generated
   //
@@ -118,7 +178,7 @@ class CoveRequest  {
       if (strpos($url,"?")!==false)
           $separator = "&";
 
-      $url = $url.$separator."consumer_key=".$this->m_api_id."&timestamp=".$timestamp."&nonce=".$nonce;
+      $url = $url.$separator."consumer_key=".$this->api_id."&timestamp=".$timestamp."&nonce=".$nonce;
       $signature = $this->calc_signature($url, $timestamp, $nonce);
       // Now add signature at the end
       $url = $this->normalize_url($url."&signature=".$signature);
@@ -153,17 +213,25 @@ class CoveRequest  {
       // cURL is required to get any error reporting from the COVE API.
       if ($use_curl && function_exists('curl_init')) {
         $ch = curl_init($url);
+        $f = fopen('curl_request.txt', 'w');
+        curl_setopt($ch, CURLOPT_VERBOSE, TRUE);
+        curl_setopt($ch, CURLINFO_HEADER_OUT, TRUE);
+        curl_setopt($ch, CURLOPT_STDERR, $f);
         curl_setopt($ch, CURLOPT_HTTPGET, TRUE);
         curl_setopt($ch, CURLOPT_HTTPHEADER, array(
           "X-PBSAuth-Timestamp: $timestamp",
-          "X-PBSAuth-Consumer-Key: $this->m_api_id",
+          "X-PBSAuth-Consumer-Key: $this->api_id",
           "X-PBSAuth-Signature: $signature",
           "X-PBSAuth-Nonce: $nonce"
         ));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         $result = curl_exec($ch);
+        fclose($f);
+        dpm($result, 'result');
         $errors = curl_error($ch);
+        kint ($errors);
         $info = curl_getinfo($ch);
+        kint ($info);
         if (empty($result)){
           if (!$errors && ($info['http_code'] != 200)){
             $errors = $info;
@@ -180,10 +248,10 @@ class CoveRequest  {
         $opts = array(
           'http'=>array(
               'method'=>"GET",
-              'header'=>"X-PBSAuth-Timestamp: $timestamp\r\n" .
-                        "X-PBSAuth-Consumer-Key: $this->m_api_id\r\n".
-                        "X-PBSAuth-Signature: $signature\r\n".
-                        "X-PBSAuth-Nonce: $nonce\r\n"
+              'header'=>"X-PBSAuth-Timestamp: $timestamp" .
+                        "X-PBSAuth-Consumer-Key: $this->api_id".
+                        "X-PBSAuth-Signature: $signature".
+                        "X-PBSAuth-Nonce: $nonce"
               )
           );
         $context = stream_context_create($opts);
