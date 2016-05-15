@@ -122,25 +122,24 @@ class CoveRequest  {
     $nonce = md5(rand());
     $signature = $this->calc_signature($url, $timestamp, $nonce);
 
-    $options = array(
-      'headers' => array(
+    $options = [
+      'headers' => [
         'X-PBSAuth-Timestamp' => $timestamp,
         'X-PBSAuth-Consumer-Key' => $this->api_id,
         'X-PBSAuth-Signature' => $signature,
-        'X-PBSAuth-Nonce' => $nonce
-      ),
-    );
+        'X-PBSAuth-Nonce' => $nonce,
+      ],
+    ];
 
     try {
       $client = \Drupal::httpClient();
       $request = $client->get($url, $options);
-      $response = $request->getBody($request)->getContents();
-      $response2 = json_decode($response);
+      $response = json_decode($request->getBody($request)->getContents());
     }
     catch (RequestException $e) {
       watchdog_exception('cove_api', $e->getMessage());
     }
 
-    return $response2;
+    return $response;
   }
 }
