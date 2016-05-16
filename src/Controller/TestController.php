@@ -25,7 +25,6 @@ class TestController extends ControllerBase
     //$response = $request->request('programs', array('filter_producer__name' => 'WETA'));
     //$response = $request->request('programs');
 
-    kint ($response);
     $player = $response->results[0]->partner_player;
 
 
