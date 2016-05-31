@@ -366,7 +366,6 @@ class CoveTestingForm extends FormBase {
     $request = new CoveRequest();
     $response = $request->request($method, $args);
     $output = '<pre>' . print_r($response, 1) . '</pre>';
-    drupal_set_message($output);
     
     // Instantiate an AjaxResponse Object to return.
     $ajax_response = new AjaxResponse();
@@ -377,11 +376,6 @@ class CoveTestingForm extends FormBase {
     
     // Return the AjaxResponse Object.
     return $ajax_response;
-
-    //$element = $form['box'];
-    //$element['#markup'] = $output;
-    //$element['#allowed_tags'] = ['iframe', 'div', 'pre'];
-    //return $element;
   }
 
 }
