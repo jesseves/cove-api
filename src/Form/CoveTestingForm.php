@@ -6,6 +6,8 @@ use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\cove_api\CoveRequest;
+use Drupal\Core\Ajax\AjaxResponse;
+use Drupal\Core\Ajax\HTMLCommand;
 
 /**
  * Class CoveTestingForm.
@@ -312,12 +314,16 @@ class CoveTestingForm extends FormBase {
     );
 
     // use an AJAX callback to display results without refreshing the page
-    $form['submit'] = array(
-      '#type' => 'submit',
+    $form['get_response'] = array(
+      '#type' => 'button',
       '#ajax' => array(
-        'callback' => 'cove_api_test_settings_form_submit_ajax_callback',
-        'wrapper' => 'box',
-        'name' => 'submit1',
+        'callback' => 'Drupal\cove_api\Form\CoveTestingForm::submitCallback',
+        'event' => 'click',
+        'progress' => array(
+          'type' => 'throbber',
+          'message' => 'Getting response',
+        ),
+
       ),
       '#value' => $this->t('Get response'),
     );
@@ -338,6 +344,44 @@ class CoveTestingForm extends FormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
 
+  }
+
+  public function submitCallback(array &$form, FormStateInterface $form_state) {
+    // remove standard form api elements, leaving only submitted data
+    $form_state->cleanValues();
+    
+    $args = array();
+    foreach ($form_state->getValues() as $key => $value) {
+      if ($key == 'method') {
+        $method = $value;
+      }
+      else {
+        if (!empty($value)) {
+          $args[$key] = $value;
+        }   
+      }
+    }
+
+    // now that we have the method and the args, call the API
+    $request = new CoveRequest();
+    $response = $request->request($method, $args);
+    $output = '<pre>' . print_r($response, 1) . '</pre>';
+    drupal_set_message($output);
+    
+    // Instantiate an AjaxResponse Object to return.
+    $ajax_response = new AjaxResponse();
+    
+    // ValCommand does not exist, so we can use InvokeCommand.
+    $ajax_response->addCommand(new HtmlCommand('#box', $output));
+    
+    
+    // Return the AjaxResponse Object.
+    return $ajax_response;
+
+    //$element = $form['box'];
+    //$element['#markup'] = $output;
+    //$element['#allowed_tags'] = ['iframe', 'div', 'pre'];
+    //return $element;
   }
 
 }
